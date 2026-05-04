@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Czas Apokalipsy — Analiza Sieci Postaci (Zgrupowana)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+:root {
+  --bg:        #07050302;
+  --bg-deep:   #070503;
+  --bg-mid:    #0e0b06;
+  --bg-card:   #13100a;
+  --bg-hover:  #1c1710;
+  --border:    #2a2218;
+  --border-bright: #3d3020;
+  --c0:        #cc4d62;
+  --c1:        #78b83e;
+  --c2:        #9b6ad4;
+  --c3:        #c87a28;
+  --c4:        #3bafaa;
+  --accent:    #e04d14;
+  --accent2:   #f0a030;
+  --text:      #c8b898;
+  --text-dim:  #6a5a40;
+  --text-mid:  #9a8a6a;
+  --gold:      #c8971a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg-deep)}
+body{
+  font-family:'Share Tech Mono',monospace;
+  color:var(--text);
+  background:
+    radial-gradient(ellipse 80% 60% at 85% 90%, rgba(180,40,10,0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 5% 10%, rgba(20,40,10,0.25) 0%, transparent 50%),
+    var(--bg-deep);
+  position:relative;
+}
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity:0.04;
+  pointer-events:none;
+  z-index:0;
+}
+
+#app{display:grid;grid-template-rows:56px 1fr 180px;grid-template-columns:1fr 320px;height:100vh;width:100vw;position:relative;z-index:1}
+#header{grid-column:1/-1;grid-row:1;display:flex;align-items:center;gap:20px;padding:0 20px;border-bottom:1px solid var(--border);background:rgba(7,5,3,0.92);backdrop-filter:blur(4px);z-index:100}
+#graph-container{grid-column:1;grid-row:2;position:relative;overflow:hidden}
+#right-panel{grid-column:2;grid-row:2;overflow-y:auto;border-left:1px solid var(--border);background:rgba(10,8,5,0.85);display:flex;flex-direction:column;gap:0}
+#interpretation{grid-column:1/-1;grid-row:3;border-top:1px solid var(--border);padding:14px 22px;overflow-y:auto;background:rgba(7,5,3,0.92)}
+
+.header-title{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:900;color:var(--accent2);letter-spacing:0.12em;text-transform:uppercase;line-height:1}
+.header-sub{font-size:0.62rem;color:var(--text-dim);letter-spacing:0.22em;text-transform:uppercase;margin-top:3px}
+.header-divider{width:1px;height:34px;background:var(--border-bright);margin:0 4px}
+.header-stat{display:flex;flex-direction:column;align-items:center;gap:2px}
+.header-stat .n{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--accent2)}
+.header-stat .l{font-size:0.55rem;color:var(--text-dim);letter-spacing:0.15em;text-transform:uppercase}
+.header-badge{font-size:0.55rem;letter-spacing:0.14em;text-transform:uppercase;padding:3px 8px;border:1px solid var(--border-bright);color:var(--text-dim);margin-left:auto}
+
+#controls{position:absolute;top:12px;left:12px;z-index:50;display:flex;gap:6px;flex-wrap:wrap}
+.ctrl-btn{font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.12em;padding:5px 10px;background:rgba(13,10,6,0.9);border:1px solid var(--border-bright);color:var(--text-dim);cursor:pointer;text-transform:uppercase;transition:all 0.2s}
+.ctrl-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+.ctrl-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(224,77,20,0.1);box-shadow:0 0 8px rgba(224,77,20,0.25)}
+
+#tooltip{position:fixed;pointer-events:none;background:rgba(10,8,4,0.97);border:1px solid var(--border-bright);padding:10px 14px;font-size:0.65rem;max-width:180px;z-index:9999;opacity:0;transition:opacity 0.15s;line-height:1.6}
+#tooltip .tt-name{font-family:'Cinzel',serif;font-size:0.75rem;font-weight:700;color:var(--accent2);margin-bottom:6px}
+#tooltip .tt-row{display:flex;justify-content:space-between;gap:12px;color:var(--text-mid)}
+#tooltip .tt-row span:last-child{color:var(--text)}
+
+.panel-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+.panel-title{font-family:'Cinzel',serif;font-size:0.68rem;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px}
+
+#node-card{min-height:160px}
+.card-empty{color:var(--text-dim);font-size:0.65rem;line-height:1.7;text-align:center;padding:20px 10px}
+.card-name{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--accent2);line-height:1.1;margin-bottom:8px;word-break:break-word}
+.card-community{display:inline-block;font-size:0.58rem;letter-spacing:0.12em;padding:2px 8px;border:1px solid;margin-bottom:10px}
+.metric-row{display:grid;grid-template-columns:1fr auto 60px;align-items:center;gap:6px;margin-bottom:5px}
+.metric-label{font-size:0.58rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em}
+.metric-bar-wrap{height:4px;background:var(--bg-mid);border-radius:0;overflow:hidden}
+.metric-bar{height:100%;transition:width 0.5s ease;border-radius:0}
+.metric-val{font-size:0.6rem;color:var(--text-mid);text-align:right;white-space:nowrap}
+.connections-title{font-size:0.58rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;margin:10px 0 5px}
+.conn-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid rgba(42,34,24,0.5);cursor:pointer;transition:background 0.15s}
+.conn-row:hover{background:var(--bg-hover)}
+.conn-name{font-size:0.65rem;color:var(--text)}
+.conn-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-right:6px}
+.conn-weight{font-size:0.6rem;color:var(--text-dim)}
+
+.legend-item{display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;transition:opacity 0.2s}
+.legend-item:hover{opacity:0.8}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.legend-info{flex:1}
+.legend-name{font-family:'Cinzel',serif;font-size:0.68rem;font-weight:600;color:var(--text)}
+.legend-desc{font-size:0.58rem;color:var(--text-dim);margin-top:1px}
+.legend-count{font-size:0.6rem;color:var(--text-dim);margin-left:auto}
+.legend-item.filtered .legend-dot{box-shadow:0 0 0 2px rgba(255,255,255,0.5)}
+
+#ranking-section{flex:1;min-height:0}
+.rank-tabs{display:flex;border-bottom:1px solid var(--border)}
+.rank-tab{flex:1;padding:7px 4px;font-family:'Share Tech Mono',monospace;font-size:0.58rem;text-align:center;letter-spacing:0.08em;cursor:pointer;border-bottom:2px solid transparent;color:var(--text-dim);transition:all 0.2s;text-transform:uppercase}
+.rank-tab.active{color:var(--accent2);border-bottom-color:var(--accent2)}
+.rank-list{overflow-y:auto;max-height:220px}
+.rank-row{display:grid;grid-template-columns:20px 10px 1fr 50px auto;align-items:center;gap:5px;padding:6px 10px;cursor:pointer;transition:background 0.15s;border-bottom:1px solid rgba(42,34,24,0.3)}
+.rank-row:hover{background:var(--bg-hover)}
+.rank-num{font-size:0.58rem;color:var(--text-dim);text-align:right}
+.rank-dot{width:8px;height:8px;border-radius:50%}
+.rank-name{font-size:0.65rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank-bar-wrap{height:3px;background:var(--bg-mid)}
+.rank-bar{height:100%;background:var(--accent)}
+.rank-val{font-size:0.6rem;color:var(--text-dim);text-align:right;white-space:nowrap}
+
+.interp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.interp-h{font-family:'Cinzel',serif;font-size:0.68rem;font-weight:600;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:5px}
+.interp-p{font-size:0.62rem;color:var(--text-mid);line-height:1.65}
+
+svg{width:100%;height:100%}
+.link{stroke-linecap:round;fill:none}
+.node circle{cursor:pointer;transition:filter 0.2s}
+.node circle:hover{filter:brightness(1.4)}
+.node text{pointer-events:none;text-anchor:middle;dominant-baseline:central;font-family:'Share Tech Mono',monospace;fill:var(--text);paint-order:stroke;stroke:rgba(7,5,3,0.9);stroke-width:3px;letter-spacing:0.06em}
+.node .ring{fill:none;pointer-events:none}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg-mid)}
+::-webkit-scrollbar-thumb{background:var(--border-bright)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="header">
+    <div>
+      <div class="header-title">Czas Apokalipsy</div>
+      <div class="header-sub">Analiza Sieci Postaci</div>
+    </div>
+    <div class="header-divider"></div>
+    <div class="header-stat"><span class="n" id="h-nodes">43</span><span class="l">postaci</span></div>
+    <div class="header-stat"><span class="n" id="h-edges">179</span><span class="l">relacji</span></div>
+    <div class="header-stat"><span class="n" id="h-density">—</span><span class="l">gęstość</span></div>
+    <div class="header-stat"><span class="n" id="h-comms">5</span><span class="l">społeczności</span></div>
+    <div class="header-badge">Apocalypse Now · F. F. Coppola · 1979</div>
+  </header>
+
+  <div id="graph-container">
+    <div id="controls">
+      <button class="ctrl-btn active" data-mode="degree">Stopień</button>
+      <button class="ctrl-btn" data-mode="betweenness">Pośrednictwo</button>
+      <button class="ctrl-btn" data-mode="closeness">Bliskość</button>
+      <button class="ctrl-btn" data-mode="pagerank">PageRank</button>
+      <button class="ctrl-btn" data-mode="reset" id="btn-reset">↺ Reset</button>
+    </div>
+    <svg id="graph-svg"></svg>
+    <div id="tooltip"></div>
+  </div>
+
+  <div id="right-panel">
+    <div class="panel-section" id="node-card">
+      <div class="panel-title">Karta Postaci</div>
+      <div class="card-empty">Kliknij węzeł,<br/>aby zobaczyć szczegóły</div>
+    </div>
+    <div class="panel-section" id="legend-section">
+      <div class="panel-title">Społeczności</div>
+      <div id="legend-list"></div>
+    </div>
+    <div class="panel-section" id="ranking-section">
+      <div class="panel-title">Ranking</div>
+      <div class="rank-tabs" id="rank-tabs">
+        <div class="rank-tab active" data-metric="degree">Stopień</div>
+        <div class="rank-tab" data-metric="betweenness">Pośred.</div>
+        <div class="rank-tab" data-metric="closeness">Bliskość</div>
+        <div class="rank-tab" data-metric="pagerank">PageRank</div>
+      </div>
+      <div class="rank-list" id="rank-list"></div>
+    </div>
+  </div>
+
+  <div id="interpretation">
+    <div class="interp-grid">
+      <div class="interp-block">
+        <div class="interp-h">Centralność Willarda</div>
+        <div class="interp-p">Kapitan Willard dominuje sieć z wyjątkowym pośrednictwem (0.492), będąc jedynym łącznikiem między większością grup. Jego misja w górę rzeki wymusiła kontakt z każdą społecznością — od bazy wojskowej, przez wieśniaków, po królestwo Kurtza.</div>
+      </div>
+      <div class="interp-block">
+        <div class="interp-h">Załoga Łodzi PBR</div>
+        <div class="interp-p">Chief, Chef i Lance tworzą najgęstszą podgrafę — klaster bojowy charakteryzujący się wysokim współczynnikiem klasteryzacji. Ich wzajemne relacje (wagi 9–30) odzwierciedlają czas spędzony razem na rzece Nung.</div>
+      </div>
+      <div class="interp-block">
+        <div class="interp-h">Kurtz — Izolacja Boga</div>
+        <div class="interp-p">Kurtz leży na peryferiach sieci, połączony z resztą głównie przez Willarda. Ta topologiczna izolacja odzwierciedla jego dobrowolne odcięcie od wojskowej hierarchii i zejście w ciemność poza granicami mapy.</div>
+      </div>
+      <div class="interp-block">
+        <div class="interp-h">Kilgore — Most między Światami</div>
+        <div class="interp-p">Płk Kilgore (społeczność 1. Kawalerii) łączy załogę łodzi z żołnierzami lotnictwa. Jego scena surfowania i nalotu napalmu jest strukturalnym mostem fabularnym między Saigon a górnym biegiem rzeki.</div>
+      </div>
+      <div class="interp-block">
+        <div class="interp-h">Głęboka Dżungla</div>
+        <div class="interp-p">Fourth Special Forces i Nu Mung Ba tworzą całkowicie izolowaną diadę — jedyna społeczność bez połączenia z głównym komponentem. Symbolizuje nieznaną, niekartografowaną przestrzeń za granicą percepcji.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const COMMUNITY_META = {
+  0: { name: "Załoga Łodzi PBR",    desc: "Chief, Chef, Lance, Clean i inni", color: "var(--c0)" },
+  1: { name: "Misja Willarda",      desc: "Willard i kontakty operacyjne",     color: "var(--c1)" },
+  2: { name: "1. Kawaleria Powietrzna", desc: "Kilgore i jego piloci",         color: "var(--c2)" },
+  3: { name: "Królestwo Kurtza",    desc: "Kurtz, Voice, Civilian i wierni",   color: "var(--c3)" },
+  4: { name: "Głęboka Dżungla",     desc: "Izolowana diada — poza mapą",       color: "var(--c4)" },
+};
+const COMMUNITY_COLORS = ["#cc4d62","#78b83e","#9b6ad4","#c87a28","#3bafaa"];
+
+const rawNodes = [
+  {id:"CHIEF",           community:0, betweenness:0.050469, rawSize:13.076},
+  {id:"WILLARD",         community:1, betweenness:0.492242, rawSize:40},
+  {id:"CHEF",            community:0, betweenness:0.055173, rawSize:13.363},
+  {id:"LANCE",           community:0, betweenness:0.046539, rawSize:12.836},
+  {id:"KILGORE",         community:2, betweenness:0.012079, rawSize:10.736},
+  {id:"KURTZ",           community:3, betweenness:0.008711, rawSize:10.531},
+  {id:"CLEAN",           community:0, betweenness:0.006160, rawSize:10.375},
+  {id:"SOLDIER",         community:0, betweenness:0.004553, rawSize:10.277},
+  {id:"COLBY",           community:1, betweenness:0.000619, rawSize:10.038},
+  {id:"VOICE",           community:3, betweenness:0.055556, rawSize:13.386},
+  {id:"GASTON",          community:0, betweenness:0,        rawSize:10},
+  {id:"ROXANNE",         community:0, betweenness:0,        rawSize:10},
+  {id:"MOONBY",          community:1, betweenness:0.003233, rawSize:10.197},
+  {id:"CIVILIAN",        community:3, betweenness:0.003484, rawSize:10.212},
+  {id:"PHILIPPE",        community:0, betweenness:0,        rawSize:10},
+  {id:"COLONEL",         community:3, betweenness:0,        rawSize:10},
+  {id:"MAJOR",           community:3, betweenness:0,        rawSize:10},
+  {id:"MIKE",            community:2, betweenness:0.000232, rawSize:10.014},
+  {id:"RADIO",           community:2, betweenness:0.001452, rawSize:10.088},
+  {id:"LIEUTENANT",      community:2, betweenness:0.001016, rawSize:10.062},
+  {id:"ACCOUNTANT",      community:1, betweenness:0,        rawSize:10},
+  {id:"CHARLIE",         community:1, betweenness:0,        rawSize:10},
+  {id:"LAWYER",          community:1, betweenness:0,        rawSize:10},
+  {id:"CAPTAIN",         community:1, betweenness:0,        rawSize:10},
+  {id:"SECOND VOICE",    community:3, betweenness:0,        rawSize:10},
+  {id:"THIRD VOICE",     community:3, betweenness:0,        rawSize:10},
+  {id:"SERGEANT",        community:0, betweenness:0,        rawSize:10},
+  {id:"AGENT",           community:3, betweenness:0.002226, rawSize:10.136},
+  {id:"GUARD",           community:2, betweenness:0,        rawSize:10},
+  {id:"TOM",             community:2, betweenness:0,        rawSize:10},
+  {id:"GUNNER",          community:0, betweenness:0.000643, rawSize:10.039},
+  {id:"PILOT",           community:3, betweenness:0.001258, rawSize:10.077},
+  {id:"TERRI",           community:3, betweenness:0,        rawSize:10},
+  {id:"CATHY",           community:0, betweenness:0,        rawSize:10},
+  {id:"LYNDA",           community:0, betweenness:0,        rawSize:10},
+  {id:"OTHER SOLDIER",   community:0, betweenness:0,        rawSize:10},
+  {id:"ROACH",           community:0, betweenness:0,        rawSize:10},
+  {id:"SPOTTER",         community:0, betweenness:0,        rawSize:10},
+  {id:"FRENCHMAN",       community:0, betweenness:0,        rawSize:10},
+  {id:"FOURTH SPECIAL FORCES", community:4, betweenness:0, rawSize:10},
+  {id:"NU MUNG BA",      community:4, betweenness:0,        rawSize:10},
+  {id:"AUSTRALIAN",      community:1, betweenness:0,        rawSize:10},
+  {id:"MAN",             community:1, betweenness:0,        rawSize:10},
+];
+
+const rawEdges = [
+  ["CHIEF","WILLARD",30],["CHIEF","CHEF",16],["CHIEF","LANCE",13],["CHIEF","CLEAN",9],
+  ["CHIEF","KILGORE",3],["CHIEF","GASTON",3],["CHIEF","SOLDIER",2],["CHIEF","VOICE",2],
+  ["CHIEF","PHILIPPE",2],["CHIEF","SERGEANT",1],["CHIEF","AGENT",1],["CHIEF","MIKE",1],
+  ["CHIEF","TOM",1],["CHIEF","CATHY",1],["CHIEF","LYNDA",1],["CHIEF","LIEUTENANT",1],
+  ["CHIEF","GUNNER",1],["CHIEF","OTHER SOLDIER",1],["CHIEF","ROACH",1],["CHIEF","SPOTTER",1],
+  ["CHIEF","FRENCHMAN",1],["CHIEF","ROXANNE",1],
+  ["WILLARD","CHEF",23],["WILLARD","LANCE",22],["WILLARD","KILGORE",13],["WILLARD","KURTZ",12],
+  ["WILLARD","CLEAN",9],["WILLARD","SOLDIER",5],["WILLARD","COLBY",5],["WILLARD","VOICE",4],
+  ["WILLARD","GASTON",4],["WILLARD","ROXANNE",4],["WILLARD","MOONBY",4],["WILLARD","CIVILIAN",3],
+  ["WILLARD","PHILIPPE",3],["WILLARD","COLONEL",2],["WILLARD","MAJOR",2],["WILLARD","MIKE",2],
+  ["WILLARD","LIEUTENANT",2],["WILLARD","ACCOUNTANT",1],["WILLARD","CHARLIE",1],["WILLARD","LAWYER",1],
+  ["WILLARD","CAPTAIN",1],["WILLARD","SECOND VOICE",1],["WILLARD","THIRD VOICE",1],["WILLARD","SERGEANT",1],
+  ["WILLARD","GUARD",1],["WILLARD","TOM",1],["WILLARD","RADIO",1],["WILLARD","AGENT",1],
+  ["WILLARD","PILOT",1],["WILLARD","TERRI",1],["WILLARD","CATHY",1],["WILLARD","LYNDA",1],
+  ["WILLARD","GUNNER",1],["WILLARD","OTHER SOLDIER",1],["WILLARD","ROACH",1],["WILLARD","SPOTTER",1],
+  ["WILLARD","FRENCHMAN",1],["WILLARD","AUSTRALIAN",1],["WILLARD","MAN",1],
+  ["CHEF","LANCE",9],["CHEF","CLEAN",8],["CHEF","KURTZ",5],["CHEF","GASTON",3],["CHEF","PHILIPPE",3],
+  ["CHEF","AGENT",1],["CHEF","KILGORE",1],["CHEF","RADIO",1],["CHEF","CATHY",1],["CHEF","LYNDA",1],
+  ["CHEF","GUNNER",1],["CHEF","OTHER SOLDIER",1],["CHEF","ROACH",1],["CHEF","SOLDIER",1],
+  ["CHEF","SPOTTER",1],["CHEF","VOICE",1],["CHEF","FRENCHMAN",1],["CHEF","ROXANNE",1],
+  ["CHEF","AUSTRALIAN",1],["CHEF","MOONBY",1],
+  ["LANCE","KILGORE",11],["LANCE","CLEAN",8],["LANCE","SOLDIER",3],["LANCE","MIKE",2],
+  ["LANCE","GASTON",2],["LANCE","PHILIPPE",2],["LANCE","TOM",1],["LANCE","CATHY",1],["LANCE","LYNDA",1],
+  ["LANCE","GUNNER",1],["LANCE","OTHER SOLDIER",1],["LANCE","ROACH",1],["LANCE","SPOTTER",1],
+  ["LANCE","VOICE",1],["LANCE","ROXANNE",1],["LANCE","COLBY",1],["LANCE","MAN",1],["LANCE","MOONBY",1],
+  ["KILGORE","MIKE",2],["KILGORE","RADIO",2],["KILGORE","SOLDIER",2],["KILGORE","CLEAN",2],
+  ["KILGORE","GUARD",1],["KILGORE","TOM",1],["KILGORE","GUNNER",1],["KILGORE","LIEUTENANT",1],
+  ["KURTZ","CIVILIAN",1],["KURTZ","COLONEL",1],["KURTZ","MAJOR",1],["KURTZ","SECOND VOICE",1],
+  ["KURTZ","THIRD VOICE",1],["KURTZ","VOICE",1],["KURTZ","MOONBY",1],["KURTZ","COLBY",1],
+  ["CLEAN","AGENT",1],["CLEAN","CATHY",1],["CLEAN","LYNDA",1],["CLEAN","GUNNER",1],
+  ["CLEAN","OTHER SOLDIER",1],["CLEAN","ROACH",1],["CLEAN","SOLDIER",1],["CLEAN","SPOTTER",1],["CLEAN","VOICE",1],
+  ["SOLDIER","VOICE",2],["SOLDIER","MIKE",1],["SOLDIER","LIEUTENANT",1],["SOLDIER","GUNNER",1],
+  ["SOLDIER","OTHER SOLDIER",1],["SOLDIER","ROACH",1],["SOLDIER","SPOTTER",1],
+  ["COLBY","MOONBY",2],["COLBY","MAN",1],
+  ["VOICE","CIVILIAN",1],["VOICE","COLONEL",1],["VOICE","MAJOR",1],["VOICE","SECOND VOICE",1],
+  ["VOICE","THIRD VOICE",1],["VOICE","AGENT",1],["VOICE","PILOT",1],["VOICE","TERRI",1],
+  ["VOICE","LIEUTENANT",1],["VOICE","GUNNER",1],["VOICE","OTHER SOLDIER",1],["VOICE","ROACH",1],["VOICE","SPOTTER",1],
+  ["GASTON","PHILIPPE",3],["GASTON","ROXANNE",2],
+  ["ROXANNE","PHILIPPE",1],
+  ["MOONBY","AUSTRALIAN",1],["MOONBY","MAN",1],
+  ["CIVILIAN","COLONEL",2],["CIVILIAN","MAJOR",2],["CIVILIAN","CAPTAIN",1],["CIVILIAN","SECOND VOICE",1],["CIVILIAN","THIRD VOICE",1],
+  ["COLONEL","MAJOR",2],["COLONEL","SECOND VOICE",1],["COLONEL","THIRD VOICE",1],
+  ["MAJOR","SECOND VOICE",1],["MAJOR","THIRD VOICE",1],
+  ["MIKE","TOM",1],
+  ["RADIO","PILOT",1],["RADIO","LIEUTENANT",1],
+  ["ACCOUNTANT","CHARLIE",1],["ACCOUNTANT","LAWYER",1],
+  ["CHARLIE","LAWYER",1],
+  ["SECOND VOICE","THIRD VOICE",1],
+  ["AGENT","PILOT",1],["AGENT","TERRI",1],
+  ["GUNNER","OTHER SOLDIER",1],["GUNNER","ROACH",1],["GUNNER","SPOTTER",1],
+  ["PILOT","TERRI",1],
+  ["CATHY","LYNDA",1],
+  ["OTHER SOLDIER","ROACH",1],["OTHER SOLDIER","SPOTTER",1],
+  ["ROACH","SPOTTER",1],
+  ["FOURTH SPECIAL FORCES","NU MUNG BA",1],
+];
+
+function computeMetrics(nodes, edges) {
+  const nodeMap = {};
+  nodes.forEach(n => { nodeMap[n.id] = n; n.degree = 0; n.neighbors = []; });
+  edges.forEach(([s,t,w]) => {
+    if (nodeMap[s] && nodeMap[t]) {
+      nodeMap[s].degree += w;
+      nodeMap[t].degree += w;
+      nodeMap[s].neighbors.push({id:t, weight:w});
+      nodeMap[t].neighbors.push({id:s, weight:w});
+    }
+  });
+  const ids = nodes.map(n => n.id);
+  const adjSet = {};
+  ids.forEach(id => { adjSet[id] = new Set(); });
+  edges.forEach(([s,t]) => { if(adjSet[s]&&adjSet[t]){ adjSet[s].add(t); adjSet[t].add(s); } });
+  nodes.forEach(src => {
+    const dist = {};
+    ids.forEach(id => dist[id] = Infinity);
+    dist[src.id] = 0;
+    const q = [src.id];
+    let qi = 0;
+    while (qi < q.length) {
+      const u = q[qi++];
+      for (const v of adjSet[u]) {
+        if (dist[v] === Infinity) { dist[v] = dist[u]+1; q.push(v); }
+      }
+    }
+    let sum = 0, reachable = 0;
+    ids.forEach(id => { if (id !== src.id && dist[id] < Infinity) { sum += dist[id]; reachable++; } });
+    src.closeness = reachable > 0 ? reachable / sum : 0;
+  });
+  const d = 0.85, iters = 50;
+  const N = nodes.length;
+  nodes.forEach(n => n.pagerank = 1/N);
+  for (let i = 0; i < iters; i++) {
+    const newPR = {};
+    nodes.forEach(n => { newPR[n.id] = (1-d)/N; });
+    nodes.forEach(n => {
+      if (n.neighbors.length > 0) {
+        const share = n.pagerank / n.neighbors.length;
+        n.neighbors.forEach(nb => { if(newPR[nb.id]!==undefined) newPR[nb.id] += d * share; });
+      }
+    });
+    nodes.forEach(n => n.pagerank = newPR[n.id]);
+  }
+  nodes.forEach(n => {
+    const nbIds = new Set(n.neighbors.map(x=>x.id));
+    if (nbIds.size < 2) { n.clustering = 0; return; }
+    let triangles = 0;
+    const nbArr = [...nbIds];
+    for (let a = 0; a < nbArr.length; a++) {
+      for (let b = a+1; b < nbArr.length; b++) {
+        if (adjSet[nbArr[a]] && adjSet[nbArr[a]].has(nbArr[b])) triangles++;
+      }
+    }
+    const k = nbIds.size;
+    n.clustering = (2 * triangles) / (k * (k-1));
+  });
+  return nodes;
+}
+
+const nodes = computeMetrics(rawNodes.map(n=>({...n})), rawEdges);
+const links = rawEdges.map(([s,t,w]) => ({source:s, target:t, weight:w}));
+
+function normalise(arr, key) {
+  const vals = arr.map(x=>x[key]);
+  const mn = Math.min(...vals), mx = Math.max(...vals);
+  arr.forEach(x => x[key+'_norm'] = mx > mn ? (x[key]-mn)/(mx-mn) : 0);
+}
+['degree','betweenness','closeness','pagerank','clustering'].forEach(k => normalise(nodes,k));
+
+const n = nodes.length, e = links.length;
+const density = (2*e) / (n*(n-1));
+document.getElementById('h-density').textContent = density.toFixed(3);
+
+const svgEl = document.getElementById('graph-svg');
+const svg = d3.select(svgEl);
+let width = svgEl.clientWidth, height = svgEl.clientHeight;
+const g = svg.append('g').attr('class','graph-group');
+const zoom = d3.zoom().scaleExtent([0.15,4]).on('zoom', e => g.attr('transform', e.transform));
+svg.call(zoom);
+
+const maxW = Math.max(...links.map(l=>l.weight));
+const strokeW = d3.scaleLinear().domain([1,maxW]).range([0.5,4]);
+const strokeOp = d3.scaleLinear().domain([1,maxW]).range([0.12,0.75]);
+
+const linkSel = g.append('g').attr('class','links')
+  .selectAll('line').data(links).enter().append('line')
+  .attr('class','link')
+  .attr('stroke', d => {
+    const sn = nodes.find(x=>x.id===d.source||x.id===d.source.id);
+    return sn ? COMMUNITY_COLORS[sn.community] : '#555';
+  })
+  .attr('stroke-width', d => strokeW(d.weight))
+  .attr('stroke-opacity', d => strokeOp(d.weight));
+
+const nodeSel = g.append('g').attr('class','nodes')
+  .selectAll('g').data(nodes).enter().append('g')
+  .attr('class','node')
+  .call(d3.drag().on('start', dragstarted).on('drag', dragged).on('end', dragended))
+  .on('click', (event, d) => { event.stopPropagation(); selectNode(d); })
+  .on('mouseover', showTooltip).on('mousemove', moveTooltip).on('mouseout', hideTooltip);
+
+nodeSel.append('circle').attr('class','ring').attr('stroke-width',2.5);
+nodeSel.append('circle').attr('class','fill-circle')
+  .attr('fill', d => COMMUNITY_COLORS[d.community])
+  .attr('stroke', d => COMMUNITY_COLORS[d.community])
+  .attr('stroke-width', 0.5).attr('stroke-opacity', 0.4);
+nodeSel.append('text').attr('class','label').attr('dy','0.35em');
+
+svg.on('click', () => { selectedNode = null; clearHighlight(); clearCard(); });
+
+let currentMode = 'degree';
+let selectedNode = null;
+let filterCommunity = null;
+
+function getRadius(d, mode) {
+  const base = 5;
+  const scale = {
+    degree:      d => base + d.degree_norm * 22,
+    betweenness: d => base + d.betweenness_norm * 22,
+    closeness:   d => base + d.closeness_norm * 22,
+    pagerank:    d => base + d.pagerank_norm * 22,
+    reset:       d => base + d.degree_norm * 22,
+  };
+  return (scale[mode] || scale.degree)(d);
+}
+
+function updateSizes(mode, animate=true) {
+  const sel = animate ? nodeSel.selectAll('circle.fill-circle').transition().duration(500) : nodeSel.selectAll('circle.fill-circle');
+  const selRing = animate ? nodeSel.selectAll('circle.ring').transition().duration(500) : nodeSel.selectAll('circle.ring');
+  const selTxt = animate ? nodeSel.selectAll('text').transition().duration(500) : nodeSel.selectAll('text');
+  sel.attr('r', d => getRadius(d, mode));
+  selRing.attr('r', d => getRadius(d, mode) + 3);
+  selTxt.attr('font-size', d => Math.max(7, getRadius(d, mode) * 0.75) + 'px');
+  nodeSel.selectAll('text').text(d => d.id);
+  simulation.alpha(0.2).restart();
+}
+
+// ── SIMULATION (GROUPED) ──
+const groupCenters = {
+  0: { x: -280, y: -180 }, 
+  1: { x: 0,    y: 0    }, 
+  2: { x: 280,  y: -180 }, 
+  3: { x: 250,  y: 220  }, 
+  4: { x: -250, y: 220  }  
+};
+
+const simulation = d3.forceSimulation(nodes)
+  .force('link', d3.forceLink(links).id(d=>d.id).distance(d => 80 / Math.sqrt(d.weight+1) + 30))
+  .force('charge', d3.forceManyBody().strength(-150))
+  .force('center', d3.forceCenter(0, 0).strength(0.05))
+  .force('x', d3.forceX(d => groupCenters[d.community].x).strength(0.12))
+  .force('y', d3.forceY(d => groupCenters[d.community].y).strength(0.12))
+  .force('collision', d3.forceCollide().radius(d => getRadius(d, currentMode) + 6))
+  .on('tick', ticked);
+
+function ticked() {
+  linkSel.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+         .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+  nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+}
+
+updateSizes('degree', false);
+
+simulation.on('end', () => {
+  const bounds = g.node().getBBox();
+  const pad = 40;
+  const sc = Math.min(width/(bounds.width+pad*2), height/(bounds.height+pad*2), 1.2);
+  const tx = width/2 - sc*(bounds.x + bounds.width/2);
+  const ty = height/2 - sc*(bounds.y + bounds.height/2);
+  svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(sc));
+});
+
+function dragstarted(event, d) { if(!event.active) simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; }
+function dragged(event, d) { d.fx=event.x; d.fy=event.y; }
+function dragended(event, d) { if(!event.active) simulation.alphaTarget(0); d.fx=null; d.fy=null; }
+
+function buildAdjacency(nodeId) {
+  const set = new Set([nodeId]);
+  links.forEach(l => {
+    const s = typeof l.source==='object'?l.source.id:l.source;
+    const t = typeof l.target==='object'?l.target.id:l.target;
+    if(s===nodeId) set.add(t);
+    if(t===nodeId) set.add(s);
+  });
+  return set;
+}
+
+function applyHighlight(adj) {
+  nodeSel.each(function(d) {
+    const inAdj = adj.has(d.id);
+    d3.select(this).selectAll('circle.fill-circle').attr('opacity', inAdj ? 1 : 0.07);
+    d3.select(this).selectAll('text').attr('opacity', inAdj ? 1 : 0.04);
+    if (d.id !== selectedNode?.id) {
+      d3.select(this).selectAll('circle.ring').attr('r', getRadius(d,currentMode)+3).attr('stroke','none').attr('opacity',0);
+    }
+  });
+  if (selectedNode) {
+    nodeSel.filter(d=>d.id===selectedNode.id).selectAll('circle.ring')
+      .attr('stroke', COMMUNITY_COLORS[selectedNode.community])
+      .attr('stroke-opacity',0.9).attr('opacity',1);
+  }
+  nodeSel.filter(d => adj.has(d.id) && d.id !== selectedNode?.id)
+    .selectAll('circle.ring').attr('stroke', d => COMMUNITY_COLORS[d.community])
+    .attr('stroke-opacity',0.5).attr('opacity',0.7);
+  linkSel.attr('stroke-opacity', d => {
+    const s = typeof d.source==='object'?d.source.id:d.source;
+    const t = typeof d.target==='object'?d.target.id:d.target;
+    return (adj.has(s)&&adj.has(t)) ? strokeOp(d.weight)*1.8 : 0.02;
+  });
+}
+
+function clearHighlight() {
+  nodeSel.selectAll('circle.fill-circle').attr('opacity',1);
+  nodeSel.selectAll('text').attr('opacity',1);
+  nodeSel.selectAll('circle.ring').attr('opacity',0).attr('stroke','none');
+  linkSel.attr('stroke-opacity', d => strokeOp(d.weight));
+}
+
+function selectNode(d) {
+  selectedNode = d;
+  const adj = buildAdjacency(d.id);
+  applyHighlight(adj);
+  renderCard(d);
+  renderRanking(currentRankMetric);
+}
+
+function clearCard() {
+  document.getElementById('node-card').innerHTML = `
+    <div class="panel-title">Karta Postaci</div>
+    <div class="card-empty">Kliknij węzeł,<br/>aby zobaczyć szczegóły</div>`;
+}
+
+function focusNode(d) {
+  selectNode(d);
+  const t = d3.zoomTransform(svgEl);
+  svg.transition().duration(500).call(zoom.transform,
+    d3.zoomIdentity.translate(width/2 - t.k*d.x, height/2 - t.k*d.y).scale(t.k)
+  );
+}
+
+function renderCard(d) {
+  const cm = COMMUNITY_META[d.community];
+  const comColor = COMMUNITY_COLORS[d.community];
+  const bar = (norm, color) => `<div class="metric-bar-wrap"><div class="metric-bar" style="width:${norm*100}%;background:${color}"></div></div>`;
+  const row = (label, norm, val, color) => `
+    <div class="metric-row">
+      <div class="metric-label">${label}</div>
+      ${bar(norm, color)}
+      <div class="metric-val">${val}</div>
+    </div>`;
+  const topConns = [...d.neighbors].sort((a,b)=>b.weight-a.weight).slice(0,5);
+  const connHtml = topConns.map(c => {
+    const cn = nodes.find(x=>x.id===c.id);
+    const cc = cn ? COMMUNITY_COLORS[cn.community] : '#888';
+    return `<div class="conn-row" onclick="focusNode(nodes.find(x=>x.id==='${c.id}'))">
+      <div class="conn-dot" style="background:${cc}"></div>
+      <div class="conn-name">${c.id}</div>
+      <div class="conn-weight">${c.weight}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('node-card').innerHTML = `
+    <div class="panel-title">Karta Postaci</div>
+    <div class="card-name">${d.id}</div>
+    <span class="card-community" style="color:${comColor};border-color:${comColor}">${cm.name}</span>
+    ${row('Stopień', d.degree_norm, d.degree, comColor)}
+    ${row('Pośrednictwo', d.betweenness_norm, d.betweenness.toFixed(4), comColor)}
+    ${row('Bliskość', d.closeness_norm, d.closeness.toFixed(4), comColor)}
+    ${row('PageRank', d.pagerank_norm, d.pagerank.toFixed(4), comColor)}
+    ${row('Klasteryzacja', d.clustering, d.clustering.toFixed(3), comColor)}
+    <div class="connections-title">Najsilniejsze powiązania</div>
+    ${connHtml}
+  `;
+}
+
+function renderLegend() {
+  const ll = document.getElementById('legend-list');
+  const commCounts = {};
+  nodes.forEach(n => commCounts[n.community] = (commCounts[n.community]||0)+1);
+  ll.innerHTML = Object.entries(COMMUNITY_META).map(([k,cm]) => {
+    const col = COMMUNITY_COLORS[k];
+    return `<div class="legend-item" data-comm="${k}" onclick="filterByCommunity(${k})">
+      <div class="legend-dot" style="background:${col}"></div>
+      <div class="legend-info">
+        <div class="legend-name">${cm.name}</div>
+        <div class="legend-desc">${cm.desc}</div>
+      </div>
+      <div class="legend-count">${commCounts[k]||0}</div>
+    </div>`;
+  }).join('');
+}
+renderLegend();
+
+function filterByCommunity(comm) {
+  if (filterCommunity === comm) {
+    filterCommunity = null;
+    document.querySelectorAll('.legend-item').forEach(el => el.classList.remove('filtered'));
+  } else {
+    filterCommunity = comm;
+    document.querySelectorAll('.legend-item').forEach(el => {
+      el.classList.toggle('filtered', +el.dataset.comm === comm);
+    });
+  }
+  renderRanking(currentRankMetric);
+}
+window.filterByCommunity = filterByCommunity;
+
+let currentRankMetric = 'degree';
+function renderRanking(metric) {
+  currentRankMetric = metric;
+  document.querySelectorAll('.rank-tab').forEach(t => t.classList.toggle('active', t.dataset.metric===metric));
+  let sorted = [...nodes].sort((a,b)=>b[metric]-a[metric]);
+  if (filterCommunity !== null) sorted = sorted.filter(n=>n.community===filterCommunity);
+  const top15 = sorted.slice(0,15);
+  const maxVal = top15[0]?.[metric] || 1;
+  const fmt = (v,m) => m==='degree' ? v.toFixed(0) : v.toFixed(4);
+  document.getElementById('rank-list').innerHTML = top15.map((d,i) => {
+    const col = COMMUNITY_COLORS[d.community];
+    const isSelected = selectedNode && selectedNode.id === d.id;
+    return `<div class="rank-row${isSelected?' active':''}" onclick="focusNode(nodes.find(x=>x.id==='${d.id}'))">
+      <div class="rank-num">${i+1}</div>
+      <div class="rank-dot" style="background:${col}"></div>
+      <div class="rank-name" style="color:${isSelected?col:'var(--text)'}">${d.id}</div>
+      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(d[metric]/maxVal)*100}%;background:${col}"></div></div>
+      <div class="rank-val">${fmt(d[metric],metric)}</div>
+    </div>`;
+  }).join('');
+}
+renderRanking('degree');
+window.focusNode = focusNode;
+
+document.getElementById('rank-tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.rank-tab');
+  if (tab) renderRanking(tab.dataset.metric);
+});
+
+document.getElementById('controls').addEventListener('click', e => {
+  const btn = e.target.closest('.ctrl-btn');
+  if (!btn) return;
+  const mode = btn.dataset.mode;
+  if (mode === 'reset') {
+    selectedNode = null; filterCommunity = null;
+    clearHighlight(); clearCard();
+    document.querySelectorAll('.legend-item').forEach(el=>el.classList.remove('filtered'));
+    renderRanking(currentRankMetric);
+    return;
+  }
+  currentMode = mode;
+  document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.toggle('active', b.dataset.mode===mode));
+  simulation.force('collision', d3.forceCollide().radius(d=>getRadius(d,mode)+6));
+  updateSizes(mode);
+  renderRanking(currentRankMetric);
+});
+
+const tooltip = document.getElementById('tooltip');
+function showTooltip(event, d) {
+  tooltip.innerHTML = `
+    <div class="tt-name">${d.id}</div>
+    <div class="tt-row"><span>Stopień</span><span>${d.degree}</span></div>
+    <div class="tt-row"><span>Pośrednictwo</span><span>${d.betweenness.toFixed(4)}</span></div>
+    <div class="tt-row"><span>PageRank</span><span>${d.pagerank.toFixed(4)}</span></div>
+  `;
+  tooltip.style.opacity = 1;
+  moveTooltip(event);
+}
+function moveTooltip(event) {
+  tooltip.style.left = (event.clientX+12)+'px';
+  tooltip.style.top  = (event.clientY+12)+'px';
+}
+function hideTooltip() { tooltip.style.opacity = 0; }
+
+window.addEventListener('resize', () => {
+  width = svgEl.clientWidth; height = svgEl.clientHeight;
+  simulation.force('center', d3.forceCenter(0,0));
+});
+</script>
+</body>
+</html>
